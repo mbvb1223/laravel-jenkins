@@ -1,32 +1,29 @@
 #!/usr/bin/env groovy
 
 node('master') {
-    try {
-        stage('build') {
-            git url: 'git@github.com:mbvb1223/laravel-jenkins.git'
+    checkout scm
 
-            // Start services (Let docker-compose build containers for testing)
-            sh "./develop up -d --build"
-
-            // Get composer dependencies
-            sh "./develop composer install"
-
-            // Create .env file for testing
-            sh 'cp .env.example .env'
-            sh './develop art key:generate'
-            sh 'sed -i "s/REDIS_HOST=.*/REDIS_HOST=redis/" .env'
-            sh 'sed -i "s/CACHE_DRIVER=.*/CACHE_DRIVER=redis/" .env'
-            sh 'sed -i "s/SESSION_DRIVER=.*/SESSION_DRIVER=redis/" .env'
+        stage('Build') {
+            checkout scm
+            sh 'pwd && cd src && /usr/local/bin/composer install'
+            docker.build("kyo88kyo/nginx", "-f Dockerfile-nginx .")
+            docker.build("kyo88kyo/blog")
         }
-        stage('test') {
-            sh "APP_ENV=testing ./develop test"
+
+        stage('Test') {
+            docker.image('kyo88kyo/blog').inside {
+                sh 'php --version'
+                sh 'cd /var/www/blog && ./vendor/bin/phpunit --testsuite Unit'
+            }
         }
-    } catch(error) {
-        // Maybe some alerting?
-        thorw error
-    } finally {
-        // Spin down containers no matter what happens
-        sh './develop down'
-        sh 'docker-cleanup'
-    }
+
+        stage('Deploy') {
+            sh 'cd src && /usr/local/bin/docker-compose down'
+            sh 'cd src && /usr/local/bin/docker-compose up -d'
+            sh 'sleep 10 && cd src && /usr/local/bin/docker-compose run web php artisan migrate'
+        }
+
+        stage ('Test Feature') {
+            sh 'cd src && /usr/local/bin/docker-compose run web ./vendor/bin/phpunit --testsuite Feature'
+        }
 }
