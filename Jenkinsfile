@@ -5,7 +5,7 @@ node('master') {
 
         stage('Build') {
             checkout scm
-            sh 'pwd && cd src && /usr/local/bin/composer install'
+            sh 'docker-compose up -d'
             docker.build("kyo88kyo/nginx", "-f Dockerfile-nginx .")
             docker.build("kyo88kyo/blog")
         }
