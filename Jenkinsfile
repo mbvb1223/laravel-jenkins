@@ -3,7 +3,7 @@
 node('master') {
     try {
         stage('build') {
-            git url: 'git@github.com:lkmadushan/laravel-docker.git'
+            git url: 'git@github.com:mbvb1223/laravel-jenkins.git'
 
             // Start services (Let docker-compose build containers for testing)
             sh "./develop up -d --build"
